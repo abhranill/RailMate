@@ -6,7 +6,22 @@ import {
   TrainFront,
 } from "lucide-react";
 
-const trains = [
+type SearchParams = {
+  from?: string;
+  to?: string;
+  date?: string;
+};
+
+type Train = {
+  number: string;
+  name: string;
+  departure: string;
+  arrival: string;
+  duration: string;
+  classType: string;
+};
+
+const trains: Train[] = [
   {
     number: "12344",
     name: "Darjeeling Mail",
@@ -33,7 +48,33 @@ const trains = [
   },
 ];
 
-export default function TrainsPage() {
+function formatDate(dateString?: string) {
+  if (!dateString) return "Date not selected";
+
+  const [year, month, day] = dateString.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return "Invalid date";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(year, month - 1, day));
+}
+
+export default async function TrainsPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+
+  const from = params.from || "NJP";
+  const to = params.to || "HWH";
+  const date = params.date;
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
@@ -59,8 +100,9 @@ export default function TrainsPage() {
         </div>
       </header>
 
-      {/* Page Content */}
+      {/* Main Content */}
       <section className="mx-auto max-w-5xl px-6 py-12">
+        {/* Page Heading */}
         <div className="mb-8">
           <p className="mb-2 text-sm font-semibold text-blue-600">
             TRAIN DISCOVERY
@@ -75,17 +117,24 @@ export default function TrainsPage() {
           </p>
         </div>
 
-        {/* Journey Summary */}
+        {/* Dynamic Journey Summary */}
         <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-3 text-lg font-bold">
-            <span>NJP</span>
+            <span>{from.toUpperCase()}</span>
+
             <ArrowRight className="text-blue-600" size={20} />
-            <span>HWH</span>
+
+            <span>{to.toUpperCase()}</span>
           </div>
 
           <p className="mt-2 text-sm text-slate-500">
-            New Jalpaiguri → Howrah
+            {from.toUpperCase()} → {to.toUpperCase()}
           </p>
+
+          <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+            <Clock size={16} />
+            Journey Date: {formatDate(date)}
+          </div>
         </div>
 
         {/* Train Cards */}
@@ -95,10 +144,14 @@ export default function TrainsPage() {
               key={train.number}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
             >
+              {/* Train Header */}
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <TrainFront size={20} className="text-blue-600" />
+                    <TrainFront
+                      size={20}
+                      className="text-blue-600"
+                    />
 
                     <h2 className="font-bold">{train.name}</h2>
                   </div>
@@ -109,11 +162,13 @@ export default function TrainsPage() {
                 </div>
 
                 <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                  Available
+                  Demo
                 </span>
               </div>
 
+              {/* Timing Information */}
               <div className="my-6 grid gap-4 sm:grid-cols-3">
+                {/* Departure */}
                 <div>
                   <p className="text-xs font-medium text-slate-500">
                     Departure
@@ -123,9 +178,12 @@ export default function TrainsPage() {
                     {train.departure}
                   </p>
 
-                  <p className="text-sm text-slate-500">NJP</p>
+                  <p className="text-sm text-slate-500">
+                    {from.toUpperCase()}
+                  </p>
                 </div>
 
+                {/* Duration */}
                 <div className="flex flex-col justify-center">
                   <div className="flex items-center gap-2 text-sm text-slate-500">
                     <Clock size={16} />
@@ -135,6 +193,7 @@ export default function TrainsPage() {
                   <div className="mt-2 h-px bg-slate-200" />
                 </div>
 
+                {/* Arrival */}
                 <div>
                   <p className="text-xs font-medium text-slate-500">
                     Arrival
@@ -144,10 +203,13 @@ export default function TrainsPage() {
                     {train.arrival}
                   </p>
 
-                  <p className="text-sm text-slate-500">HWH</p>
+                  <p className="text-sm text-slate-500">
+                    {to.toUpperCase()}
+                  </p>
                 </div>
               </div>
 
+              {/* Footer */}
               <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4">
                 <p className="text-sm text-slate-500">
                   Classes: {train.classType}
@@ -165,8 +227,10 @@ export default function TrainsPage() {
           ))}
         </div>
 
+        {/* Demo Notice */}
         <p className="mt-8 text-center text-xs text-slate-400">
-          Demo train data for development only. Not real-time availability.
+          Demo train data for development only. Not real-time
+          schedules or availability.
         </p>
       </section>
     </main>

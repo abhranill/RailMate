@@ -3,36 +3,52 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, TrainFront } from "lucide-react";
+import {
+  ArrowRight,
+  TrainFront,
+  MapPin,
+  Search,
+} from "lucide-react";
+
+import { stations, Station } from "@/lib/stations";
 
 export default function Home() {
   const router = useRouter();
 
-  // Search form state
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  // Search input states
+  const [fromQuery, setFromQuery] = useState("");
+  const [toQuery, setToQuery] = useState("");
+
+  // Selected station states
+  const [fromStation, setFromStation] = useState<Station | null>(
+    null
+  );
+
+  const [toStation, setToStation] = useState<Station | null>(
+    null
+  );
+
+  // Journey date
   const [date, setDate] = useState("");
 
   // Handle train search
   const handleSearch = () => {
-    if (!from.trim() || !to.trim() || !date) {
-      alert("Please fill in all search fields.");
+    if (!fromStation || !toStation || !date) {
+      alert("Please select From, To stations and journey date.");
       return;
     }
 
-    if (from.trim().toLowerCase() === to.trim().toLowerCase()) {
+    if (fromStation.code === toStation.code) {
       alert("From and To stations cannot be the same.");
       return;
     }
 
-    // Create URL parameters
     const params = new URLSearchParams({
-      from: from.trim(),
-      to: to.trim(),
+      from: fromStation.code,
+      to: toStation.code,
       date,
     });
 
-    // Navigate to train results page
     router.push(`/trains?${params.toString()}`);
   };
 
@@ -41,7 +57,8 @@ export default function Home() {
       {/* Navbar */}
       <nav className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
+          {/* Logo */}
+          <a href="/" className="flex items-center gap-2">
             <div className="rounded-xl bg-blue-600 p-2 text-white">
               <TrainFront size={22} />
             </div>
@@ -49,8 +66,9 @@ export default function Home() {
             <span className="text-xl font-bold tracking-tight">
               RailMate <span className="text-blue-600">AI</span>
             </span>
-          </div>
+          </a>
 
+          {/* Navigation */}
           <div className="hidden items-center gap-8 text-sm font-medium md:flex">
             <a href="/" className="text-blue-600">
               Home
@@ -85,6 +103,7 @@ export default function Home() {
             </a>
           </div>
 
+          {/* AI Button */}
           <a
             href="/assistant"
             className="hidden rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600 sm:block"
@@ -137,42 +156,36 @@ export default function Home() {
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* From Station */}
-            <div>
-              <label
-                htmlFor="from"
-                className="mb-2 block text-sm font-semibold text-slate-700"
-              >
-                From
-              </label>
-
-              <input
-                id="from"
-                type="text"
-                placeholder="e.g. NJP"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
+            <StationAutocomplete
+              label="From"
+              placeholder="Search departure station"
+              value={fromQuery}
+              selectedStation={fromStation}
+              onChange={(value) => {
+                setFromQuery(value);
+                setFromStation(null);
+              }}
+              onSelect={(station) => {
+                setFromStation(station);
+                setFromQuery(`${station.name} (${station.code})`);
+              }}
+            />
 
             {/* To Station */}
-            <div>
-              <label
-                htmlFor="to"
-                className="mb-2 block text-sm font-semibold text-slate-700"
-              >
-                To
-              </label>
-
-              <input
-                id="to"
-                type="text"
-                placeholder="e.g. HWH"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
+            <StationAutocomplete
+              label="To"
+              placeholder="Search arrival station"
+              value={toQuery}
+              selectedStation={toStation}
+              onChange={(value) => {
+                setToQuery(value);
+                setToStation(null);
+              }}
+              onSelect={(station) => {
+                setToStation(station);
+                setToQuery(`${station.name} (${station.code})`);
+              }}
+            />
 
             {/* Journey Date */}
             <div>
@@ -187,6 +200,7 @@ export default function Home() {
                 id="date"
                 type="date"
                 value={date}
+                min={new Date().toISOString().split("T")[0]}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
@@ -237,7 +251,128 @@ export default function Home() {
   );
 }
 
-// Reusable Feature Card Component
+/* =========================================
+   Station Autocomplete Component
+========================================= */
+
+type StationAutocompleteProps = {
+  label: string;
+  placeholder: string;
+  value: string;
+  selectedStation: Station | null;
+  onChange: (value: string) => void;
+  onSelect: (station: Station) => void;
+};
+
+function StationAutocomplete({
+  label,
+  placeholder,
+  value,
+  selectedStation,
+  onChange,
+  onSelect,
+}: StationAutocompleteProps) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  const searchTerm = value.trim().toLowerCase();
+
+  const filteredStations = stations
+    .filter((station) => {
+      if (!searchTerm) return true;
+
+      return (
+        station.name.toLowerCase().includes(searchTerm) ||
+        station.code.toLowerCase().includes(searchTerm) ||
+        station.city.toLowerCase().includes(searchTerm) ||
+        station.state.toLowerCase().includes(searchTerm)
+      );
+    })
+    .slice(0, 6);
+
+  const showSuggestions =
+    isFocused && !selectedStation && filteredStations.length > 0;
+
+  return (
+    <div className="relative">
+      <label
+        htmlFor={label}
+        className="mb-2 block text-sm font-semibold text-slate-700"
+      >
+        {label}
+      </label>
+
+      {/* Input */}
+      <div className="relative">
+        <Search
+          size={17}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+        />
+
+        <input
+          id={label}
+          type="text"
+          placeholder={placeholder}
+          value={value}
+          autoComplete="off"
+          onFocus={() => setIsFocused(true)}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        />
+      </div>
+
+      {/* Suggestions Dropdown */}
+      {showSuggestions && (
+        <div className="absolute left-0 right-0 z-50 mt-2 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+          {filteredStations.map((station) => (
+            <button
+              key={station.code}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onSelect(station);
+                setIsFocused(false);
+              }}
+              className="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition hover:bg-blue-50"
+            >
+              <MapPin
+                size={18}
+                className="mt-1 shrink-0 text-blue-600"
+              />
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {station.name}
+                  </p>
+
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-bold text-slate-600">
+                    {station.code}
+                  </span>
+                </div>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  {station.city}, {station.state}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Selected Station Indicator */}
+      {selectedStation && (
+        <p className="mt-1 text-xs font-medium text-green-600">
+          ✓ Station selected: {selectedStation.code}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* =========================================
+   Feature Card Component
+========================================= */
+
 function FeatureCard({
   icon,
   title,
