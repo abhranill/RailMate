@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -26,22 +25,70 @@ export default function BookingPage() {
   const [classType, setClassType] = useState("SL");
   const [phone, setPhone] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
-    const params = new URLSearchParams({
-      train: trainNumber,
-      from,
-      to,
-      date,
-      name: fullName,
-      age,
-      gender,
-      phone,
-      classType,
-    });
+    setIsLoading(true);
+    setError("");
 
-    router.push(`/booking/confirmation?${params.toString()}`);
+    try {
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          trainNumber,
+          from,
+          to,
+          date,
+          name: fullName,
+          age,
+          gender,
+          phone,
+          classType,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setError(result.message || "Booking failed.");
+        return;
+      }
+
+      const booking = result.data;
+
+      const params = new URLSearchParams({
+        bookingId: booking.bookingId,
+        train: booking.trainNumber,
+        from: booking.from,
+        to: booking.to,
+        date: booking.date,
+        name: booking.name,
+        age: String(booking.age),
+        gender: booking.gender,
+        phone: booking.phone,
+        classType: booking.classType,
+      });
+
+      router.push(
+        `/booking/confirmation?${params.toString()}`
+      );
+    } catch (error) {
+      console.error("Booking submission error:", error);
+
+      setError(
+        "Unable to connect to the booking server. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -49,7 +96,6 @@ export default function BookingPage() {
       {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="rounded-xl bg-blue-600 p-2 text-white">
               <TrainFront size={22} />
@@ -60,13 +106,12 @@ export default function BookingPage() {
             </span>
           </Link>
 
-          {/* Back Button */}
           <Link
             href={`/trains?from=${encodeURIComponent(
               from
-            )}&to=${encodeURIComponent(to)}&date=${encodeURIComponent(
-              date
-            )}`}
+            )}&to=${encodeURIComponent(
+              to
+            )}&date=${encodeURIComponent(date)}`}
             className="flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-blue-600"
           >
             <ArrowLeft size={16} />
@@ -101,7 +146,9 @@ export default function BookingPage() {
               </div>
 
               <div>
-                <h2 className="font-bold">Journey Summary</h2>
+                <h2 className="font-bold">
+                  Journey Summary
+                </h2>
 
                 <p className="text-sm text-slate-500">
                   Selected train
@@ -110,7 +157,7 @@ export default function BookingPage() {
             </div>
 
             <div className="mt-6 space-y-4">
-              {/* Train Number */}
+              {/* Train */}
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-400">
                   Train Number
@@ -132,9 +179,12 @@ export default function BookingPage() {
                 </p>
               </div>
 
-              {/* Journey Date */}
+              {/* Date */}
               <div className="flex items-center gap-2">
-                <CalendarDays size={18} className="text-blue-600" />
+                <CalendarDays
+                  size={18}
+                  className="text-blue-600"
+                />
 
                 <div>
                   <p className="text-xs text-slate-400">
@@ -149,7 +199,10 @@ export default function BookingPage() {
 
               {/* Booking Type */}
               <div className="flex items-center gap-2">
-                <UserRound size={18} className="text-blue-600" />
+                <UserRound
+                  size={18}
+                  className="text-blue-600"
+                />
 
                 <div>
                   <p className="text-xs text-slate-400">
@@ -163,7 +216,7 @@ export default function BookingPage() {
               </div>
             </div>
 
-            {/* Demo Notice */}
+            {/* Notice */}
             <div className="mt-6 rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
               This project currently uses mock data. It is
               not connected to the official railway booking
@@ -198,15 +251,14 @@ export default function BookingPage() {
                     setFullName(event.target.value)
                   }
                   placeholder="Enter passenger name"
-                  required
                   maxLength={100}
+                  required
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
-              {/* Age and Gender */}
+              {/* Age + Gender */}
               <div className="grid gap-5 sm:grid-cols-2">
-                {/* Age */}
                 <div>
                   <label
                     htmlFor="age"
@@ -230,7 +282,6 @@ export default function BookingPage() {
                   />
                 </div>
 
-                {/* Gender */}
                 <div>
                   <label
                     htmlFor="gender"
@@ -256,7 +307,7 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* Phone Number */}
+              {/* Phone */}
               <div>
                 <label
                   htmlFor="phone"
@@ -271,11 +322,11 @@ export default function BookingPage() {
                   inputMode="numeric"
                   value={phone}
                   onChange={(event) =>
-                    setPhone(event.target.value)
+                    setPhone(event.target.value.replace(/\D/g, ""))
                   }
                   placeholder="Enter phone number"
-                  pattern="[0-9]{10}"
                   maxLength={10}
+                  pattern="[0-9]{10}"
                   required
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
@@ -317,12 +368,25 @@ export default function BookingPage() {
                 </select>
               </div>
 
-              {/* Submit Button */}
+              {/* Error */}
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700"
+                >
+                  {error}
+                </div>
+              )}
+
+              {/* Submit */}
               <button
                 type="submit"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                disabled={isLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Continue Booking
+                {isLoading
+                  ? "Processing..."
+                  : "Continue Booking"}
               </button>
             </div>
           </form>
