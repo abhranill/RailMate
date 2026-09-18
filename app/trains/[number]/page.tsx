@@ -17,62 +17,24 @@ type SearchParams = {
   date?: string;
 };
 
-const trainData: Record<
-  string,
-  {
-    name: string;
-    number: string;
-    departure: string;
-    arrival: string;
-    duration: string;
-    classes: string;
-    stops: string[];
-  }
-> = {
-  "12344": {
-    name: "Darjeeling Mail",
-    number: "12344",
-    departure: "18:00",
-    arrival: "06:00",
-    duration: "12h 00m",
-    classes: "SL, 3A, 2A",
-    stops: [
-      "New Jalpaiguri",
-      "Malda Town",
-      "Barddhaman",
-      "Howrah Junction",
-    ],
-  },
+type Train = {
+  number: string;
+  name: string;
+  from: string;
+  to: string;
+  departure: string;
+  arrival: string;
+  duration: string;
+  fare: number;
+  classType?: string;
+};
 
-  "12378": {
-    name: "Padatik Express",
-    number: "12378",
-    departure: "09:00",
-    arrival: "19:30",
-    duration: "10h 30m",
-    classes: "SL, 3A, 2A",
-    stops: [
-      "New Jalpaiguri",
-      "Malda Town",
-      "Barddhaman",
-      "Howrah Junction",
-    ],
-  },
-
-  "13148": {
-    name: "Uttar Banga Express",
-    number: "13148",
-    departure: "20:00",
-    arrival: "08:30",
-    duration: "12h 30m",
-    classes: "SL, 3A",
-    stops: [
-      "New Jalpaiguri",
-      "Alipurduar Junction",
-      "New Cooch Behar",
-      "Sealdah",
-    ],
-  },
+type ApiResponse = {
+  success: boolean;
+  count: number;
+  data: Train[];
+  demo?: boolean;
+  message?: string;
 };
 
 function formatDate(dateString?: string) {
@@ -89,6 +51,18 @@ function formatDate(dateString?: string) {
   }).format(new Date(year, month - 1, day));
 }
 
+function getStationName(code: string) {
+  const stations: Record<string, string> = {
+    NJP: "New Jalpaiguri",
+    HWH: "Howrah Junction",
+    SDAH: "Sealdah",
+    BWN: "Barddhaman",
+    MLD: "Malda Town",
+  };
+
+  return stations[code] || code;
+}
+
 export default async function TrainDetailsPage({
   params,
   searchParams,
@@ -99,27 +73,61 @@ export default async function TrainDetailsPage({
   const { number } = await params;
   const query = await searchParams;
 
-  const train = trainData[number];
-
-  const from = query.from || "NJP";
-  const to = query.to || "HWH";
+  const from = (query.from || "NJP").toUpperCase();
+  const to = (query.to || "HWH").toUpperCase();
   const date = query.date;
 
-  if (!train) {
+  let train: Train | undefined;
+  let apiError = false;
+  let isDemoData = true;
+
+  try {
+    const apiUrl = new URL("http://localhost:3000/api/trains");
+
+    apiUrl.searchParams.set("from", from);
+    apiUrl.searchParams.set("to", to);
+
+    const response = await fetch(apiUrl.toString(), {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      apiError = true;
+    } else {
+      const apiData: ApiResponse = await response.json();
+
+      train = apiData.data?.find(
+        (item) => item.number === number
+      );
+
+      isDemoData = apiData.demo ?? true;
+    }
+  } catch (error) {
+    console.error("Train details API error:", error);
+    apiError = true;
+  }
+
+  if (!train || apiError) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
         <div className="text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+            <TrainFront size={30} />
+          </div>
+
           <h1 className="text-3xl font-bold">
-            Train Not Found
+            {apiError ? "Unable to Load Train" : "Train Not Found"}
           </h1>
 
           <p className="mt-3 text-slate-500">
-            We couldn't find details for this train.
+            {apiError
+              ? "Something went wrong while fetching train details."
+              : "We couldn't find details for this train."}
           </p>
 
           <Link
-            href="/trains"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
+            href={`/trains?from=${from}&to=${to}&date=${date || ""}`}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
           >
             <ArrowLeft size={16} />
             Back to Trains
@@ -128,6 +136,12 @@ export default async function TrainDetailsPage({
       </main>
     );
   }
+
+  const stops = [
+    getStationName(from),
+    "Intermediate Station (Demo)",
+    getStationName(to),
+  ];
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -182,10 +196,14 @@ export default async function TrainDetailsPage({
               <h2 className="mt-2 text-2xl font-bold">
                 {from} → {to}
               </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                {getStationName(from)} to {getStationName(to)}
+              </p>
             </div>
 
             <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-              Demo Data
+              {isDemoData ? "Demo Data" : "Available"}
             </span>
           </div>
 
@@ -201,7 +219,7 @@ export default async function TrainDetailsPage({
               </p>
 
               <p className="mt-1 text-sm text-slate-500">
-                {from}
+                {getStationName(from)}
               </p>
             </div>
 
@@ -228,13 +246,13 @@ export default async function TrainDetailsPage({
               </p>
 
               <p className="mt-1 text-sm text-slate-500">
-                {to}
+                {getStationName(to)}
               </p>
             </div>
           </div>
 
-          {/* Date & Classes */}
-          <div className="grid gap-4 border-t border-slate-100 pt-6 sm:grid-cols-2">
+          {/* Date, Classes and Fare */}
+          <div className="grid gap-4 border-t border-slate-100 pt-6 sm:grid-cols-3">
             <div className="flex items-center gap-3">
               <CalendarDays className="text-blue-600" size={20} />
 
@@ -258,9 +276,23 @@ export default async function TrainDetailsPage({
                 </p>
 
                 <p className="text-sm font-semibold">
-                  {train.classes}
+                  {train.classType || "SL, 3A"}
                 </p>
               </div>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-400">
+                Starting Fare
+              </p>
+
+              <p className="text-xl font-bold text-blue-600">
+                ₹{train.fare}
+              </p>
+
+              <p className="text-xs text-slate-400">
+                Estimated fare
+              </p>
             </div>
           </div>
         </div>
@@ -282,7 +314,7 @@ export default async function TrainDetailsPage({
           </div>
 
           <div className="relative space-y-6">
-            {train.stops.map((stop, index) => (
+            {stops.map((stop, index) => (
               <div
                 key={`${stop}-${index}`}
                 className="relative flex items-start gap-4"
@@ -290,14 +322,14 @@ export default async function TrainDetailsPage({
                 {/* Timeline */}
                 <div className="flex flex-col items-center">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                    {index === 0 || index === train.stops.length - 1 ? (
+                    {index === 0 || index === stops.length - 1 ? (
                       <MapPin size={18} />
                     ) : (
                       <CheckCircle2 size={18} />
                     )}
                   </div>
 
-                  {index !== train.stops.length - 1 && (
+                  {index !== stops.length - 1 && (
                     <div className="h-8 w-px bg-blue-100" />
                   )}
                 </div>
@@ -309,7 +341,7 @@ export default async function TrainDetailsPage({
                   <p className="mt-1 text-xs text-slate-400">
                     {index === 0
                       ? "Starting station"
-                      : index === train.stops.length - 1
+                      : index === stops.length - 1
                         ? "Final station"
                         : "Intermediate stop"}
                   </p>
@@ -319,21 +351,29 @@ export default async function TrainDetailsPage({
           </div>
         </div>
 
-        {/* Back Button */}
-        <div className="mt-8">
-          <Link
-            href={`/trains?from=${from}&to=${to}&date=${date || ""}`}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            <ArrowLeft size={16} />
-            Back to Train Results
-          </Link>
-        </div>
+        {/* Action Buttons */}
+<div className="mt-8 flex flex-wrap gap-4">
+  <Link
+    href={`/trains?from=${from}&to=${to}&date=${date || ""}`}
+    className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+  >
+    <ArrowLeft size={16} />
+    Back to Train Results
+  </Link>
+
+  <Link
+    href={`/booking?train=${train.number}&from=${from}&to=${to}&date=${date || ""}`}
+    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+  >
+    Book Now
+    <ArrowRight size={16} />
+  </Link>
+</div>
 
         {/* Demo Notice */}
         <div className="mt-8 rounded-xl border border-amber-100 bg-amber-50 p-4 text-center text-xs leading-5 text-amber-800">
-          Train routes, timings, and stops shown here are
-          mock development data. Verify details through
+          Train routes, timings, fares, and stops shown here
+          are mock development data. Verify details through
           official railway sources before travelling.
         </div>
       </section>

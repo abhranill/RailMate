@@ -1,4 +1,6 @@
+
 import Link from "next/link";
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,38 +21,22 @@ type SearchParams = {
 type Train = {
   number: string;
   name: string;
+  from: string;
+  to: string;
   departure: string;
   arrival: string;
   duration: string;
+  fare: number;
   classType: string;
 };
 
-const trains: Train[] = [
-  {
-    number: "12344",
-    name: "Darjeeling Mail",
-    departure: "18:00",
-    arrival: "06:00",
-    duration: "12h 00m",
-    classType: "SL, 3A, 2A",
-  },
-  {
-    number: "12378",
-    name: "Padatik Express",
-    departure: "09:00",
-    arrival: "19:30",
-    duration: "10h 30m",
-    classType: "SL, 3A, 2A",
-  },
-  {
-    number: "13148",
-    name: "Uttar Banga Express",
-    departure: "20:00",
-    arrival: "08:30",
-    duration: "12h 30m",
-    classType: "SL, 3A",
-  },
-];
+type ApiResponse = {
+  success: boolean;
+  count: number;
+  data: Train[];
+  demo?: boolean;
+  message?: string;
+};
 
 function formatDate(dateString?: string) {
   if (!dateString) return "Date not selected";
@@ -87,6 +73,37 @@ export default async function TrainsPage({
   const toCode = (params.to || "HWH").toUpperCase();
   const date = params.date;
 
+  // API URL
+  const apiUrl = new URL(
+    "http://localhost:3000/api/trains"
+  );
+
+  apiUrl.searchParams.set("from", fromCode);
+  apiUrl.searchParams.set("to", toCode);
+
+  // Fetch train data
+  let apiData: ApiResponse = {
+    success: false,
+    count: 0,
+    data: [],
+    message: "Unable to fetch train data.",
+  };
+
+  try {
+    const response = await fetch(apiUrl.toString(), {
+      cache: "no-store",
+    });
+
+    if (response.ok) {
+      apiData = await response.json();
+    }
+  } catch (error) {
+    console.error("Train API error:", error);
+  }
+
+  const trains = apiData.data;
+
+  // Station information
   const fromStation = getStation(fromCode);
   const toStation = getStation(toCode);
 
@@ -99,24 +116,25 @@ export default async function TrainsPage({
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="rounded-xl bg-blue-600 p-2 text-white">
               <TrainFront size={22} />
             </div>
 
             <span className="text-xl font-bold tracking-tight">
-              RailMate <span className="text-blue-600">AI</span>
+              RailMate{" "}
+              <span className="text-blue-600">AI</span>
             </span>
-          </a>
+          </Link>
 
           {/* Back Home */}
-          <a
+          <Link
             href="/"
             className="flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-blue-600"
           >
             <ArrowLeft size={16} />
             Back Home
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -140,6 +158,7 @@ export default async function TrainsPage({
         {/* Journey Summary */}
         <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
+            {/* From */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 From
@@ -154,8 +173,12 @@ export default async function TrainsPage({
               </p>
             </div>
 
-            <ArrowRight className="mx-2 text-blue-600" size={22} />
+            <ArrowRight
+              className="mx-2 text-blue-600"
+              size={22}
+            />
 
+            {/* To */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 To
@@ -171,14 +194,17 @@ export default async function TrainsPage({
             </div>
           </div>
 
+          {/* Date and Railway */}
           <div className="mt-5 flex flex-wrap gap-4 border-t border-slate-100 pt-4 text-sm text-slate-500">
             <div className="flex items-center gap-2">
               <CalendarDays size={16} />
+
               <span>{formatDate(date)}</span>
             </div>
 
             <div className="flex items-center gap-2">
               <MapPin size={16} />
+
               <span>Indian Railways</span>
             </div>
           </div>
@@ -195,121 +221,165 @@ export default async function TrainsPage({
           </span>
         </div>
 
-        {/* Train Cards */}
-        <div className="space-y-5">
-          {trains.map((train) => (
-            <div
-              key={train.number}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+        {/* API Error Message */}
+        {!apiData.success && apiData.message && (
+          <div className="mb-5 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+            {apiData.message}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {trains.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+            <TrainFront
+              size={44}
+              className="mx-auto text-slate-300"
+            />
+
+            <h3 className="mt-4 text-xl font-bold">
+              No trains found
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              We couldn't find any trains for this route.
+              Try searching for another station pair.
+            </p>
+
+            <Link
+              href="/"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              {/* Train Header */}
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <TrainFront
-                      size={20}
-                      className="text-blue-600"
-                    />
+              Search Another Route
+              <ArrowRight size={16} />
+            </Link>
+          </div>
+        ) : (
+          /* Train Cards */
+          <div className="space-y-5">
+            {trains.map((train) => (
+              <div
+                key={train.number}
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+              >
+                {/* Train Header */}
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <TrainFront
+                        size={20}
+                        className="text-blue-600"
+                      />
 
-                    <h3 className="text-lg font-bold">
-                      {train.name}
-                    </h3>
+                      <h3 className="text-lg font-bold">
+                        {train.name}
+                      </h3>
+                    </div>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Train No. {train.number}
+                    </p>
                   </div>
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    Train No. {train.number}
-                  </p>
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                    {apiData.demo ? "Demo Data" : "Available"}
+                  </span>
                 </div>
 
-                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                  Demo Data
-                </span>
-              </div>
+                {/* Timing */}
+                <div className="my-6 grid gap-5 sm:grid-cols-3">
+                  {/* Departure */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Departure
+                    </p>
 
-              {/* Timing */}
-              <div className="my-6 grid gap-5 sm:grid-cols-3">
-                {/* Departure */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Departure
-                  </p>
+                    <p className="mt-1 text-3xl font-bold">
+                      {train.departure}
+                    </p>
 
-                  <p className="mt-1 text-3xl font-bold">
-                    {train.departure}
-                  </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">
+                      {fromCode}
+                    </p>
 
-                  <p className="mt-1 text-sm font-semibold text-slate-600">
-                    {fromCode}
-                  </p>
-
-                  <p className="text-xs text-slate-500">
-                    {fromName}
-                  </p>
-                </div>
-
-                {/* Duration */}
-                <div className="flex flex-col justify-center">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Clock size={16} />
-                    <span>{train.duration}</span>
+                    <p className="text-xs text-slate-500">
+                      {fromName}
+                    </p>
                   </div>
 
-                  <div className="mt-3 h-px bg-slate-200" />
+                  {/* Duration */}
+                  <div className="flex flex-col justify-center">
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <Clock size={16} />
 
-                  <p className="mt-2 text-xs text-slate-400">
-                    Journey duration
-                  </p>
+                      <span>{train.duration}</span>
+                    </div>
+
+                    <div className="mt-3 h-px bg-slate-200" />
+
+                    <p className="mt-2 text-xs text-slate-400">
+                      Journey duration
+                    </p>
+                  </div>
+
+                  {/* Arrival */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Arrival
+                    </p>
+
+                    <p className="mt-1 text-3xl font-bold">
+                      {train.arrival}
+                    </p>
+
+                    <p className="mt-1 text-sm font-semibold text-slate-600">
+                      {toCode}
+                    </p>
+
+                    <p className="text-xs text-slate-500">
+                      {toName}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Arrival */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Arrival
-                  </p>
+                {/* Footer */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4">
+                  {/* Fare and Classes */}
+                  <div>
+                    <p className="text-xs text-slate-400">
+                      Fare (Demo)
+                    </p>
 
-                  <p className="mt-1 text-3xl font-bold">
-                    {train.arrival}
-                  </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">
+                      ₹{train.fare}
+                    </p>
 
-                  <p className="mt-1 text-sm font-semibold text-slate-600">
-                    {toCode}
-                  </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Available classes
+                    </p>
 
-                  <p className="text-xs text-slate-500">
-                    {toName}
-                  </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">
+                      {train.classType}
+                    </p>
+                  </div>
+
+                  {/* View Details */}
+                  <Link
+                    href={`/trains/${train.number}?from=${fromCode}&to=${toCode}&date=${date || ""}`}
+                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    View Details
+                    <ArrowRight size={16} />
+                  </Link>
                 </div>
               </div>
-
-              {/* Footer */}
-              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4">
-                <div>
-                  <p className="text-xs text-slate-400">
-                    Available classes
-                  </p>
-
-                  <p className="mt-1 text-sm font-semibold text-slate-600">
-                    {train.classType}
-                  </p>
-                </div>
-
-                
-<Link
-  href={`/trains/${train.number}?from=${fromCode}&to=${toCode}&date=${date || ""}`}
-  className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
->
-  View Details
-  <ArrowRight size={16} />
-</Link>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Notice */}
         <div className="mt-8 rounded-xl border border-amber-100 bg-amber-50 p-4 text-center text-xs leading-5 text-amber-800">
-          Demo train information only. Timings and availability
-          are not real-time railway data.
+          Demo train information only. Timings, fares, and
+          availability are not real-time railway data.
         </div>
       </section>
     </main>

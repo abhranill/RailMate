@@ -10,9 +10,43 @@ type Train = {
   arrival: string;
   duration: string;
   fare: number;
+  classType: string;
 };
 
 const trains: Train[] = [
+  {
+    number: "12344",
+    name: "Darjeeling Mail",
+    from: "NJP",
+    to: "HWH",
+    departure: "18:00",
+    arrival: "06:00",
+    duration: "12h 00m",
+    fare: 650,
+    classType: "SL, 3A, 2A",
+  },
+  {
+    number: "12378",
+    name: "Padatik Express",
+    from: "NJP",
+    to: "HWH",
+    departure: "09:00",
+    arrival: "19:30",
+    duration: "10h 30m",
+    fare: 900,
+    classType: "SL, 3A, 2A",
+  },
+  {
+    number: "13148",
+    name: "Uttar Banga Express",
+    from: "NJP",
+    to: "HWH",
+    departure: "20:00",
+    arrival: "08:30",
+    duration: "12h 30m",
+    fare: 450,
+    classType: "SL, 3A",
+  },
   {
     number: "RM1001",
     name: "RailMate Express",
@@ -22,6 +56,7 @@ const trains: Train[] = [
     arrival: "16:15",
     duration: "9h 45m",
     fare: 650,
+    classType: "SL, 3A",
   },
   {
     number: "RM1002",
@@ -32,6 +67,7 @@ const trains: Train[] = [
     arrival: "17:30",
     duration: "9h 30m",
     fare: 900,
+    classType: "SL, 3A",
   },
   {
     number: "RM1003",
@@ -42,6 +78,7 @@ const trains: Train[] = [
     arrival: "21:00",
     duration: "11h",
     fare: 450,
+    classType: "SL",
   },
 ];
 
