@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -20,16 +20,27 @@ export default function Home() {
   const [toQuery, setToQuery] = useState("");
 
   // Selected station states
-  const [fromStation, setFromStation] = useState<Station | null>(
-    null
-  );
-
-  const [toStation, setToStation] = useState<Station | null>(
-    null
-  );
+  const [fromStation, setFromStation] = useState<Station | null>(null);
+  const [toStation, setToStation] = useState<Station | null>(null);
 
   // Journey date
   const [date, setDate] = useState("");
+
+  // Minimum journey date
+  const [minDate, setMinDate] = useState("");
+
+  // Set minimum date after component mounts
+  useEffect(() => {
+    const today = new Date();
+
+    const formattedDate = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+
+    setMinDate(formattedDate);
+  }, []);
 
   // Handle train search
   const handleSearch = () => {
@@ -200,7 +211,7 @@ export default function Home() {
                 id="date"
                 type="date"
                 value={date}
-                min={new Date().toISOString().split("T")[0]}
+                min={minDate || undefined}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />

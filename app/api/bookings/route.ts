@@ -1,24 +1,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
-
-type Booking = {
-  bookingId: string;
-  trainNumber: string;
-  from: string;
-  to: string;
-  date: string;
-  name: string;
-  age: number;
-  gender: string;
-  phone: string;
-  classType: string;
-  createdAt: string;
-};
-
-const bookings: Booking[] = [];
+import connectDB from "@/lib/mongodb";
+import Booking from "@/models/Booking";
 
 export async function POST(request: NextRequest) {
   try {
+    // Connect to MongoDB
+    await connectDB();
+
+    // Read request body
     const body = await request.json();
 
     const {
@@ -33,13 +23,14 @@ export async function POST(request: NextRequest) {
       classType,
     } = body;
 
+    // Validate required fields
     if (
       !trainNumber ||
       !from ||
       !to ||
       !date ||
       !name ||
-      !age ||
+      age === undefined ||
       !gender ||
       !phone ||
       !classType
@@ -53,70 +44,81 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate phone number
     if (!/^[0-9]{10}$/.test(String(phone))) {
       return NextResponse.json(
         {
           success: false,
-          message: "Phone number must contain 10 digits.",
+          message: "Phone number must contain exactly 10 digits.",
         },
         { status: 400 }
       );
     }
 
-    const passengerAge = Number(age);
+    // Validate age
+    const numericAge = Number(age);
 
     if (
-      !Number.isInteger(passengerAge) ||
-      passengerAge < 1 ||
-      passengerAge > 120
+      !Number.isInteger(numericAge) ||
+      numericAge < 1 ||
+      numericAge > 120
     ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Please provide a valid age.",
+          message: "Age must be between 1 and 120.",
         },
         { status: 400 }
       );
     }
 
-    const bookingId = `RM${Date.now()
-      .toString()
-      .slice(-8)}`;
-
-    const newBooking: Booking = {
-      bookingId,
+    // Create booking in MongoDB
+    const booking = await Booking.create({
       trainNumber: String(trainNumber),
       from: String(from),
       to: String(to),
       date: String(date),
-      name: String(name),
-      age: passengerAge,
+      name: String(name).trim(),
+      age: numericAge,
       gender: String(gender),
       phone: String(phone),
       classType: String(classType),
-      createdAt: new Date().toISOString(),
-    };
-
-    bookings.push(newBooking);
+    });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Demo booking created successfully.",
-        data: newBooking,
-        demo: true,
+        message: "Booking created successfully.",
+        data: {
+          bookingId: booking.bookingId,
+          trainNumber: booking.trainNumber,
+          from: booking.from,
+          to: booking.to,
+          date: booking.date,
+          name: booking.name,
+          age: booking.age,
+          gender: booking.gender,
+          phone: booking.phone,
+          classType: booking.classType,
+        },
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Booking API error:", error);
+  } catch (error: unknown) {
+    // Print the actual error in the VS Code terminal
+    console.error("BOOKING API ERROR:", error);
+
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown server error occurred.";
 
     return NextResponse.json(
       {
         success: false,
-        message: "Invalid request data.",
+        message: errorMessage,
       },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }
