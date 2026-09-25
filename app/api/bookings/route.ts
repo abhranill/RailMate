@@ -1,12 +1,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/lib/mongodb";
+import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 
 export async function POST(request: NextRequest) {
   try {
-    // Connect to MongoDB
     await connectDB();
+
+   
 
     // Read request body
     const body = await request.json();
